@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - "ecr.tf" # This is the path to the Terraform file that creates the ECR repository
+      - "terraform/ecr/**" # This is the path to the Terraform file that creates the ECR repository
 
 jobs:
   create_ecr_repo:
@@ -25,9 +25,12 @@ jobs:
 
       - name: Terraform Init
         run: terraform init
+        working-directory: terraform/ecr
 
       - name: Terraform Plan
         run: terraform plan -out=tfplan
+        working-directory: terraform/ecr
 
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
+        working-directory: terraform/ecr
