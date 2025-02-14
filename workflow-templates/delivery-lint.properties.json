@@ -1,9 +1,0 @@
-{
-  "name": "Delivery Lint Workflow",
-  "description": "A basic lint workflow template that simply echoes a message.",
-  "iconName": "octicon workflow",
-  "categories": [
-    "Lint"
-  ],
-  "filePatterns": []
-}

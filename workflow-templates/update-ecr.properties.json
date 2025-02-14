@@ -1,0 +1,9 @@
+{
+  "name": "Update ECR in AWS",
+  "description": "Workflow to update ECR in the AWS",
+  "iconName": "octicon workflow",
+  "categories": [
+    "Deployment"
+  ],
+  "filePatterns": []
+}
