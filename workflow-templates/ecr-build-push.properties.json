@@ -1,0 +1,11 @@
+{
+  "name": "ECR Build & Push",
+  "description": "Builds a Docker image and pushes to ECR.",
+  "iconName": "octicon container",
+  "categories": [
+    "Deployment"
+  ],
+  "filePatterns": [
+    "Dockerfile"
+  ]
+}
