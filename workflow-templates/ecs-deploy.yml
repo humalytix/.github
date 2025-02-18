@@ -1,0 +1,62 @@
+name: ECS Deploy (Nonprod)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy_nonprod:
+    runs-on: ${{ vars.GH_RUNNER_VERSION }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ vars.ROLE_TO_ASSUME }}
+          role-session-name: GitHubActionsSession
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform/ecs
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        working-directory: terraform/ecs
+        run: |
+          export TF_VAR_api_image="${{ vars.ECR_REGISTRY_URI }}/${{ vars.ECR_REPO_NAME }}:dev"
+          echo "Deploying with TF_VAR_api_image=$TF_VAR_api_image"
+
+          terraform apply -auto-approve -compact-warnings
+
+      - name: Wait for ECS to Stabilize
+        working-directory: terraform/ecs
+        run: |
+          CLUSTER=$(terraform output -raw ecs_cluster_name)
+          SERVICE=$(terraform output -raw ecs_service_name)
+          echo "Waiting for service: $SERVICE in cluster: $CLUSTER"
+
+          while true; do
+            STATUS=$(aws ecs describe-services --cluster "$CLUSTER" --service "$SERVICE" \
+              --region us-east-1 \
+              --query 'services[0].deployments[0].rolloutState' --output text)
+
+            if [[ "$STATUS" == "FAILED" ]]; then
+              echo "Deployment FAILED!"
+              exit 1
+            elif [[ "$STATUS" == "COMPLETED" ]]; then
+              echo "Deployment SUCCEEDED!"
+              break
+            else
+              echo "Deployment is $STATUS, waiting 30s..."
+              sleep 30
+            fi
+          done
