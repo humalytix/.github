@@ -1,0 +1,7 @@
+{
+  "name": "Nonprod ECS Deploy",
+  "description": "Deploys a container to the nonprod ECS environment.",
+  "iconName": "octicon rocket",
+  "categories": ["Deployment"],
+  "filePatterns": []
+}

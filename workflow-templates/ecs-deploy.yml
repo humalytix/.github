@@ -1,0 +1,38 @@
+name: ECS Deploy (Nonprod)
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy_nonprod:
+    runs-on: ${{ vars.GH_RUNNER_VERSION }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ vars.ROLE_TO_ASSUME }}
+          role-session-name: GitHubActionsSession
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: terraform/ecs
+        run: terraform init -input=false
+
+      - name: Terraform Apply
+        working-directory: terraform/ecs
+        run: |
+          export TF_VAR_api_image="${{ vars.ECR_REGISTRY_URI }}/${{ vars.ECR_REPO_NAME }}:dev"
+          echo "Deploying with TF_VAR_api_image=$TF_VAR_api_image"
+
+          terraform apply -auto-approve -compact-warnings
