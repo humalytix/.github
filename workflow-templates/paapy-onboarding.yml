@@ -1,0 +1,87 @@
+name: PaaPy Onboarding Workflow
+
+on: workflow_dispatch
+
+permissions: read-all
+
+jobs:
+  onboard-nonprod:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      role_arn: ${{ steps.onboarding.outputs.role_arn }}
+      state_bucket: ${{ steps.onboarding.outputs.state_bucket }}
+      secret_arn: ${{ steps.onboarding.outputs.secret_arn }}
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: PaaPy Onboarding
+        uses: humalytix/PaaPy-onboarding@main
+        id: onboarding
+        with:
+          env: nonprod
+          service-name: delivery-hello-world
+          app-token: ${{ steps.app-token.outputs.token }}
+
+  onboard-prod:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      role_arn: ${{ steps.onboarding.outputs.role_arn }}
+      state_bucket: ${{ steps.onboarding.outputs.state_bucket }}
+      secret_arn: ${{ steps.onboarding.outputs.secret_arn }}
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: PaaPy Onboarding
+        uses: humalytix/PaaPy-onboarding@main
+        id: onboarding
+        with:
+          env: prod
+          service-name: delivery-hello-world
+          app-token: ${{ steps.app-token.outputs.token }}
+
+  set-repo-vars:
+    runs-on: ubuntu-24.04
+    needs: [onboard-nonprod]
+    permissions: write-all
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Set repository variables
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh variable set NONPROD_ROLE_ARN --body "${{ needs.onboard-nonprod.outputs.role_arn }}"
+          gh variable set NONPROD_STATE_BUCKET --body "${{ needs.onboard-nonprod.outputs.state_bucket }}"
+          gh variable set NONPROD_SECRET_ARN --body "${{ needs.onboard-nonprod.outputs.secret_arn }}"
+          gh variable set PROD_ROLE_ARN --body "${{ needs.onboard-prod.outputs.role_arn }}"
+          gh variable set PROD_STATE_BUCKET --body "${{ needs.onboard-prod.outputs.state_bucket }}"
+          gh variable set PROD_SECRET_ARN --body "${{ needs.onboard-prod.outputs.secret_arn }}"
