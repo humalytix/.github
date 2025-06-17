@@ -28,7 +28,7 @@ jobs:
         id: onboarding
         with:
           env: nonprod
-          service-name: delivery-hello-world
+          service-name: # Your service name here. Must match repo name!
           app-token: ${{ steps.app-token.outputs.token }}
 
   onboard-prod:
@@ -54,13 +54,15 @@ jobs:
         id: onboarding
         with:
           env: prod
-          service-name: delivery-hello-world
+          service-name: # Your service name here. Must match repo name!
           app-token: ${{ steps.app-token.outputs.token }}
 
   set-repo-vars:
     runs-on: ubuntu-24.04
-    needs: [onboard-nonprod]
-    permissions: write-all
+    needs: [onboard-nonprod, onboard-prod]
+    permissions:
+      id-token: write
+      contents: write
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
