@@ -1,7 +1,7 @@
 {
   "name": "PaaPy Onboarding",
   "description": "Onboards a service to use PaaPy.",
-  "iconName": "icons/aws.svg",
+  "iconName": "aws",
   "categories": ["Deployment"],
   "filePatterns": []
 }
