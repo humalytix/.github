@@ -4,6 +4,15 @@ on: workflow_dispatch
 
 permissions: read-all
 
+# Update these values with your configuration, merge, and run this workflow to onboard your service to PaaPy. #####
+env:
+  default-permissions: # Optional. A comma-separated string with any of: 'sns, sqs, rds, eventbridge'.
+  service-name: # Required. Your service name. MUST MATCH REPOSITORY NAME!
+  service-type: # Required. Service type of either: 'ecs' or 'lambda'.
+  team-name: # Required. Your team name.
+  custom-policy-names: # Optional. A comma-separated string of custom IAM policy names.
+###################################################################################################################
+
 jobs:
   onboard-nonprod:
     runs-on: ubuntu-24.04
@@ -24,12 +33,16 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: PaaPy Onboarding
-        uses: humalytix/PaaPy-onboarding@main
+        uses: humalytix/PaaPy-onboarding@v1
         id: onboarding
         with:
           env: nonprod
-          service-name: # Your service name here. Must match repo name!
           app-token: ${{ steps.app-token.outputs.token }}
+          custom-policy-names: ${{ env.custom-policy-names }}
+          default-permissions: ${{ env.default-permissions }}
+          service-name: ${{ env.service-name }}
+          service-type: ${{ env.service-type }}
+          team-name: ${{ env.team-name }}
 
   onboard-prod:
     runs-on: ubuntu-24.04
@@ -50,12 +63,16 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: PaaPy Onboarding
-        uses: humalytix/PaaPy-onboarding@main
+        uses: humalytix/PaaPy-onboarding@v1
         id: onboarding
         with:
           env: prod
-          service-name: # Your service name here. Must match repo name!
           app-token: ${{ steps.app-token.outputs.token }}
+          custom-policy-names: ${{ env.custom-policy-names }}
+          default-permissions: ${{ env.default-permissions }}
+          service-name: ${{ env.service-name }}
+          service-type: ${{ env.service-type }}
+          team-name: ${{ env.team-name }}
 
   set-repo-vars:
     runs-on: ubuntu-24.04
