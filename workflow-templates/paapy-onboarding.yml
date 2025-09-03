@@ -11,9 +11,58 @@ env:
   service-type: # Required. Service type of either: 'ecs' or 'lambda'.
   team-name: # Required. Your team name.
   custom-policy-names: # Optional. A comma-separated string of custom IAM policy names.
+  vault-users: # Required. A comma-separated string of user emails to add to the 1Password vault
 ###################################################################################################################
 
 jobs:
+  onepass:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: PaaPy 1Password Onboarding
+        id: onepass
+        uses: humalytix/PaaPy-Onboarding-1Password@v1
+        with:
+          users: ${{ env.vault-users }}
+          service: ${{ env.service-name }}
+          op_secret_key: ${{ secrets.PAAPY_OP_ONBOARDING_SECRET_KEY }}
+          op_email: ${{ secrets.PAAPY_OP_ONBOARDING_EMAIL }}
+          op_password: ${{ secrets.PAAPY_OP_ONBOARDING_PASSWORD }}
+          op_session_name: ${{ secrets.PAAPY_OP_ONBOARDING_SESSION_NAME }}
+          gh_app_id: ${{ vars.PAAPY_APP_ID }}
+          gh_access_key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+
+      - name: Test Token Retrieval
+        run: |
+          if [ -n "${{ steps.onepass.outputs.token }}" ]; then
+            echo "Token received successfully (masked)"
+          else
+            echo "ERROR: No token received from onboarding step"
+            exit 1
+          fi
+
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Get a GitHub app token that has secrets:write permission
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      # Set the secret in the repository
+      - name: Store Token
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: gh secret set OP_SERVICE_ACCOUNT_TOKEN --body "${{ steps.onepass.outputs.token }}"
+
   onboard-nonprod:
     runs-on: ubuntu-24.04
     permissions:
