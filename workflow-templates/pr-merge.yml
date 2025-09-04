@@ -1,0 +1,95 @@
+name: PR Merge Workflow
+
+on:
+  push:
+    branches:
+      - main
+
+permissions: read-all
+
+jobs:
+  tag:
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      pull-requests: read
+    outputs:
+      semantic_tag: ${{ steps.tag.outputs.semantic_tag }}
+    steps:
+      - name: PaaPy Tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+        uses: humalytix/PaaPy-tag@v1
+
+  build:
+    needs: tag
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      ecr_repo_url: ${{ steps.build.outputs.ecr_repo_url }}
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: PaaPy Build
+        id: build
+        uses: humalytix/PaaPy-build@v1
+        with:
+          paapy_app_token: ${{ steps.app-token.outputs.token }}
+          role_arn: ${{ vars.NONPROD_ROLE_ARN }}
+
+  deploy-nonprod:
+    needs: [tag, build]
+    runs-on: ubuntu-22.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: PaaPy Deploy
+        uses: humalytix/PaaPy-deploy-ecs@v1
+        with:
+          ecr_repo_url: ${{ needs.build.outputs.ecr_repo_url }}
+          env: nonprod
+          image_tag: ${{ needs.tag.outputs.semantic_tag }}
+          paapy_app_token: ${{ steps.app-token.outputs.token }}
+          role_arn: ${{ vars.NONPROD_ROLE_ARN }}
+
+  # deploy-prod:
+  #   needs: [tag, build, deploy-nonprod]
+  #   runs-on: ubuntu-22.04
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   steps:
+  #     - name: Get PaaPy Token
+  #       uses: actions/create-github-app-token@v1
+  #       id: app-token
+  #       with:
+  #         app-id: ${{ vars.PAAPY_APP_ID }}
+  #         private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+  #         owner: ${{ github.repository_owner }}
+
+  #     - name: PaaPy Deploy
+  #       uses: humalytix/PaaPy-deploy-ecs@v1
+  #       with:
+  #         ecr_repo_url: ${{ needs.build.outputs.ecr_repo_url }}
+  #         env: prod
+  #         image_tag: ${{ needs.tag.outputs.semantic_tag }}
+  #         paapy_app_token: ${{ steps.app-token.outputs.token }}
+  #         role_arn: ${{ vars.PROD_ROLE_ARN }}

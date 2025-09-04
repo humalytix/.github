@@ -1,0 +1,7 @@
+{
+  "name": "PaaPy PR Merge Workflow",
+  "description": "A default PR merge workflow to use with PaaPy Services.",
+  "iconName": "aws",
+  "categories": ["Deployment"],
+  "filePatterns": []
+}
