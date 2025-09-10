@@ -7,6 +7,9 @@ on:
 
 permissions: read-all
 
+env:
+  notifications_slack_channel_id: C09C6TM2UQH # #delivery-test-notifications channel. Please update with desired channel.
+
 jobs:
   tag:
     runs-on: ubuntu-22.04
@@ -93,3 +96,44 @@ jobs:
   #         image_tag: ${{ needs.tag.outputs.semantic_tag }}
   #         paapy_app_token: ${{ steps.app-token.outputs.token }}
   #         role_arn: ${{ vars.PROD_ROLE_ARN }}
+
+  notify-success:
+    needs: [tag, build, deploy-nonprod] # add deploy-prod once in use
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Send Slack Message
+        uses: humalytix/PaaPy-slack-notifications@v1
+        with:
+          header: Deployment Success!
+          message: ${{ github.event.head_commit.message }}
+          message_type: success
+          slack_channel_id: ${{ env.notifications_slack_channel_id }}
+          slack_webhook: ${{ secrets.SLACK_WEBHOOK }} # inherits GH Org secret. Please overwrite with Repo Secret.
+
+  notify-failure:
+    needs: [tag, build, deploy-nonprod] # add deploy-prod once in use
+    if: ${{ failure() }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Send Slack Message
+        uses: humalytix/PaaPy-slack-notifications@v1
+        with:
+          header: Deployment Failure!
+          message: ${{ github.event.head_commit.message }}
+          message_type: failure
+          slack_channel_id: ${{ env.notifications_slack_channel_id }}
+          slack_webhook: ${{ secrets.SLACK_WEBHOOK }} # inherits GH Org secret. Please overwrite with Repo Secret.
+
+  notify-cancelled:
+    needs: [tag, build, deploy-nonprod] # add deploy-prod once in use
+    if: ${{ cancelled() }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Send Slack Message
+        uses: humalytix/PaaPy-slack-notifications@v1
+        with:
+          header: Deployment Cancelled!
+          message: ${{ github.event.head_commit.message }}
+          message_type: cancelled
+          slack_channel_id: ${{ env.notifications_slack_channel_id }}
+          slack_webhook: ${{ secrets.SLACK_WEBHOOK }} # inherits GH Org secret. Please overwrite with Repo Secret.
