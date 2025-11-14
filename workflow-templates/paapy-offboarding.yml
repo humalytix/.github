@@ -1,0 +1,154 @@
+name: PaaPy Offboarding Workflow
+
+on: workflow_dispatch
+
+permissions: read-all
+
+# Update these values with your configuration, merge, and run this workflow to onboard your service to PaaPy. #####
+# Should be identical to values in your paapy-onboarding.yml ######################################################
+env:
+  default-permissions: # Optional. A comma-separated string with any of: 'sns, sqs, rds, eventbridge'.
+  service-name: # Required. Your service name. MUST MATCH REPOSITORY NAME!
+  service-type: # Required. Service type of either: 'ecs' or 'lambda'.
+  team-name: # Required. Your team name.
+  custom-policy-names: # Optional. A comma-separated string of custom IAM policy names.
+  vault-users: # Required. A comma-separated string of user emails to add to the 1Password vault
+###################################################################################################################
+
+jobs:
+  onepass:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      OP_SECRET_KEY: ${{ secrets.PAAPY_OP_ONBOARDING_SECRET_KEY }}
+    steps:
+      - name: PaaPy 1Password Offboarding
+        id: onepass
+        uses: humalytix/PaaPy-Onboarding-1Password@v1
+        with:
+          delete_vault: true
+          users: ${{ env.vault-users }}
+          service: ${{ env.service-name }}
+          op_secret_key: ${{ secrets.PAAPY_OP_ONBOARDING_SECRET_KEY }}
+          op_email: ${{ secrets.PAAPY_OP_ONBOARDING_EMAIL }}
+          op_password: ${{ secrets.PAAPY_OP_ONBOARDING_PASSWORD }}
+          op_session_name: ${{ secrets.PAAPY_OP_ONBOARDING_SESSION_NAME }}
+          gh_app_id: ${{ vars.PAAPY_APP_ID }}
+          gh_access_key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+
+      - name: Create JIRA ticket for Service Account Deletion # Creates a JIRA story for delivery team to delete 1pass Service Account
+        id: jira
+        run: |
+          response=$(curl --request POST \
+            --url 'https://traxion.atlassian.net/rest/api/3/issue' \
+            --user '${{ secrets.JIRA_EMAIL }}:${{ secrets.JIRA_API_TOKEN }}' \
+            --header 'Accept: application/json' \
+            --header 'Content-Type: application/json' \
+            --data '{
+            "fields": {
+              "project": { "id": "11015"},
+              "issuetype": { "id": "10001" },
+              "summary": "Delete 1Password Service Account for ${{ env.service-name }}",
+              "priority": {
+                "id": "3",
+                "name": "Medium",
+                "iconUrl": "https://traxion.atlassian.net/images/icons/priorities/medium.svg"
+              },
+              "customfield_10647": ["Delivery"]
+            }}')
+
+            echo "ticket=https://traxion.atlassian.net/browse/$(echo $response | jq -r .key)" >> $GITHUB_OUTPUT
+
+      - name: Send Slack Message with JIRA Ticket # Sends a message in #delivery-pipelines Slack Channel
+        uses: humalytix/PaaPy-slack-notifications@v1
+        with:
+          header: Service has been offboarded from PaaPy!
+          message: <!subteam^S074TQ86BQR> JIRA ticket to delete Service Account <${{ steps.jira.outputs.ticket }}|here>.
+          message_type: cancelled
+          slack_channel_id: 'C08A9SV7YL8'
+          slack_webhook: ${{ secrets.DELIVERY_SLACK_WEBHOOK }}
+
+  offboard-nonprod:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: PaaPy Offboarding
+        uses: humalytix/PaaPy-onboarding@v1
+        with:
+          env: nonprod
+          app-token: ${{ steps.app-token.outputs.token }}
+          custom-policy-names: ${{ env.custom-policy-names }}
+          default-permissions: ${{ env.default-permissions }}
+          offboarding: true
+          service-name: ${{ env.service-name }}
+          service-type: ${{ env.service-type }}
+          team-name: ${{ env.team-name }}
+
+  offboard-prod:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: PaaPy Offboarding
+        uses: humalytix/PaaPy-onboarding@v1
+        with:
+          env: prod
+          app-token: ${{ steps.app-token.outputs.token }}
+          custom-policy-names: ${{ env.custom-policy-names }}
+          default-permissions: ${{ env.default-permissions }}
+          offboarding: true
+          service-name: ${{ env.service-name }}
+          service-type: ${{ env.service-type }}
+          team-name: ${{ env.team-name }}
+
+  delete-repo-vars:
+    runs-on: ubuntu-24.04
+    needs: [offboard-nonprod, offboard-prod]
+    permissions:
+      id-token: write
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Delete repository variables
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh variable delete NONPROD_ROLE_ARN 
+          gh variable delete NONPROD_STATE_BUCKET
+          gh variable delete NONPROD_SECRET_ARN
+          gh variable delete PROD_ROLE_ARN
+          gh variable delete PROD_STATE_BUCKET
+          gh variable delete PROD_SECRET_ARN
