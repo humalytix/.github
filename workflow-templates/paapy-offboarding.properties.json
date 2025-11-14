@@ -1,0 +1,7 @@
+{
+  "name": "PaaPy Offboarding",
+  "description": "Offboards a PaaPy Service.",
+  "iconName": "aws",
+  "categories": ["Deployment"],
+  "filePatterns": []
+}
