@@ -11,10 +11,9 @@ on:
       - "package-lock.json"
       - "tsconfig.json"
       - "bun.lockb"
-    paths-ignore:
-      - "README.md"
-      - ".gitignore"
-      - "terraform/**"
+      - "!README.md"
+      - "!.gitignore"
+      - "!terraform/**"
 
 jobs:
   build_and_push:
