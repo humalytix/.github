@@ -1,0 +1,94 @@
+name: Terraform Destroy PaaPy-Provisioned Infrastructure
+description: Destroy infrastructure provisioned by PaaPy onboarding workflow.
+run-name: Destroy PaaPy-Provisioned Infra for ${{ github.event.inputs.service_name }} in ${{ github.event.inputs.env }} environment
+
+permissions: read-all
+
+on:
+  workflow_dispatch:
+    inputs:
+      env:
+        description: 'Environment type (e.g. nonprod or prod)'
+        required: true
+        type: choice
+        options:
+          - nonprod
+          - prod
+      terraform_folder:
+        description: 'Path to folder containing Terraform configuration files.'
+        required: true
+      # Do we need both service name and role name?
+      service_name:
+        description: 'Name of service to destory infrastructure for. Must be the same as repository name.'
+        required: true
+      
+
+jobs:
+  destroy-infra:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Configure Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.8.5'
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: us-east-1
+          role-to-assume: ${{ inputs.env == 'prod' && var.PROD_ROLE_ARN || var.NONPROD_ROLE_ARN }}
+          role-session-name: GitHubActionsSession
+
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: paapy-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Checkout service repo
+        uses: actions/checkout@v5
+
+      - name: Disable RDS Delete Protection
+        shell: bash
+        id: disable-rds-delete-protection
+        working-directory: ${{ inputs.terraform_folder }}
+        run: |
+          # Get the DB instance identifier from Terraform output
+          # rds_endpoint = "hello-world.cuyb9pkynyoh.us-east-1.rds.amazonaws.com:5432"
+          OUTPUT=$(terraform output -json)
+
+          #Check if any rds_ keys exist in the output
+          if ! echo "$OUTPUT" | grep -q 'rds_'; then
+            echo "No RDS instance found in Terraform output. Skipping RDS delete protection disable step."
+            exit 0
+          fi
+
+          # Outputs containing RDS info changed in v2.0.4 of Paapy-TF-rds
+          # If rds_db_name is in output, extract the DB instance identifier from it. 
+          # If older use logic to split rds_endpoint by . and get the first entry in the array to use as the db-instance-identifier
+          if echo "$OUTPUT" | grep -q 'rds_db_name'; then
+            DB_INSTANCE_ID=$(echo "$OUTPUT" | grep 'rds_db_name')
+          else
+            DB_INSTANCE_ID=$(echo "$OUTPUT" | grep 'rds_endpoint' | sed 's/"//g' | cut -d '.' -f 1)
+          fi
+
+          # Disable RDS delete protection using AWS CLI with credentials from the previous step
+          aws rds modify-db-instance \
+            --db-instance-identifier "$DB_INSTANCE_ID" \
+            --no-deletion-protection \
+            --apply-immediately \
+            | jq
+          
+      - name: Destroy Infrastructure
+        shell: bash
+        id: destroy-infra
+        working-directory: ${{ inputs.terraform_folder }}
+        run: |
+          git config --global url."https://x-access-token:${{ steps.app-token.outputs.token }}@github.com/".insteadOf "https://github.com/"
+          terraform init -input=false -backend-config="environment/${{ inputs.env }}.s3.tfbackend" -var-file="environment/${{ inputs.env }}.tfvars" -var-file="environment/shared.tfvars"
+          terraform destroy -auto-approve -compact-warnings

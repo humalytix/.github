@@ -1,0 +1,7 @@
+{
+  "name": "Remove PaaPy-Provisioned Infrastructure from AWS",
+  "description": "Removes infrastructure provisioned by PaaPy from AWS.",
+  "iconName": "aws",
+  "categories": ["Deployment"],
+  "filePatterns": []
+}
