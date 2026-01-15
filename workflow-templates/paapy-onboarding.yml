@@ -178,3 +178,4 @@ jobs:
           gh variable set PROD_STATE_BUCKET --body "${{ needs.onboard-prod.outputs.state_bucket }}"
           gh variable set PROD_SECRET_ARN --body "${{ needs.onboard-prod.outputs.secret_arn }}"
           gh variable set ECR_REPO_URL --body "${{ needs.onboard-ecr.outputs.repo_url }}"
+          gh variable set ECR_REPO_NAME --body "${{ needs.onboard-ecr.outputs.repo_name }}"

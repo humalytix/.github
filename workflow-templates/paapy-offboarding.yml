@@ -178,3 +178,4 @@ jobs:
           gh variable delete PROD_STATE_BUCKET
           gh variable delete PROD_SECRET_ARN
           gh variable delete ECR_REPO_URL
+          gh variable delete ECR_REPO_NAME
