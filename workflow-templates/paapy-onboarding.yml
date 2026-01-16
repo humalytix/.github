@@ -123,9 +123,33 @@ jobs:
           service-type: ${{ env.service-type }}
           team-name: ${{ env.team-name }}
 
+  onboard-ecr:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      repo_url: ${{ steps.ecr.outputs.repo_url }}
+      repo_name: ${{ steps.ecr.outputs.repo_name }}
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Create ECR Repo
+        id: ecr
+        uses: humalytix/PaaPy-ecr@v1
+        with:
+          app-token: ${{ steps.app-token.outputs.token }}
+          service-name: ${{ env.service-name }}
+
   set-repo-vars:
     runs-on: ubuntu-24.04
-    needs: [onboard-nonprod, onboard-prod]
+    needs: [onboard-nonprod, onboard-prod, onboard-ecr]
     permissions:
       id-token: write
       contents: write
@@ -153,3 +177,5 @@ jobs:
           gh variable set PROD_ROLE_ARN --body "${{ needs.onboard-prod.outputs.role_arn }}"
           gh variable set PROD_STATE_BUCKET --body "${{ needs.onboard-prod.outputs.state_bucket }}"
           gh variable set PROD_SECRET_ARN --body "${{ needs.onboard-prod.outputs.secret_arn }}"
+          gh variable set ECR_REPO_URL --body "${{ needs.onboard-ecr.outputs.repo_url }}"
+          gh variable set ECR_REPO_NAME --body "${{ needs.onboard-ecr.outputs.repo_name }}"

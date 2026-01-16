@@ -122,9 +122,34 @@ jobs:
           service-type: ${{ env.service-type }}
           team-name: ${{ env.team-name }}
 
+  offboard-ecr:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      repo_url: ${{ steps.ecr.outputs.repo_url }}
+      repo_name: ${{ steps.ecr.outputs.repo_name }}
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Create ECR Repo
+        id: ecr
+        uses: humalytix/PaaPy-ecr@v1
+        with:
+          app-token: ${{ steps.app-token.outputs.token }}
+          offboarding: true
+          service-name: ${{ env.service-name }}
+
   delete-repo-vars:
     runs-on: ubuntu-24.04
-    needs: [offboard-nonprod, offboard-prod]
+    needs: [offboard-nonprod, offboard-prod, offboard-ecr]
     permissions:
       id-token: write
       contents: write
@@ -152,3 +177,5 @@ jobs:
           gh variable delete PROD_ROLE_ARN
           gh variable delete PROD_STATE_BUCKET
           gh variable delete PROD_SECRET_ARN
+          gh variable delete ECR_REPO_URL
+          gh variable delete ECR_REPO_NAME
