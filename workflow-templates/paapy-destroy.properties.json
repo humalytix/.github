@@ -1,0 +1,7 @@
+{
+  "name": "PaaPy Destroy",
+  "description": "Destroy resources created for PaaPy services.",
+  "iconName": "aws",
+  "categories": ["Deployment"],
+  "filePatterns": []
+}
