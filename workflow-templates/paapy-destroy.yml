@@ -1,0 +1,54 @@
+name: PaaPy Destroy
+description: Destroy infrastructure provisioned by PaaPy.
+
+permissions: read-all
+
+on:
+  workflow_dispatch:
+
+jobs:
+  destroy-nonprod-infra:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: paapy-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Destroy NonProd Infra
+        uses: humalytix/PaaPy-destroy@v1
+        with:
+          app_token: ${{ steps.paapy-token.outputs.token }}
+          env: nonprod
+          role_arn: ${{ vars.NONPROD_ROLE_ARN }}
+
+  # UNCOMMENTING THIS AND RUNNING WORKFLOW WILL DESTROY ALL PRODUCTION INFRASTRUCTURE
+  # BE ABSOLUTELY SURE YOU WISH TO DELETE IT BEFORE PROCEEDING
+  #
+  # destroy-prod-infra:
+  #   runs-on: ubuntu-24.04
+  #   needs: destroy-nonprod-infra
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+  #   steps:
+  #     - name: Get PaaPy Token
+  #       uses: actions/create-github-app-token@v1
+  #       id: paapy-token
+  #       with:
+  #         app-id: ${{ vars.PAAPY_APP_ID }}
+  #         private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+  #         owner: ${{ github.repository_owner }}
+
+  #     - name: Destroy Prod Infra
+  #       uses: humalytix/PaaPy-destroy@v1
+  #       with:
+  #         app_token: ${{ steps.paapy-token.outputs.token }}
+  #         env: prod
+  #         role_arn: ${{ vars.PROD_ROLE_ARN }}
