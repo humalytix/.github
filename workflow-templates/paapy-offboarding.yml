@@ -8,6 +8,8 @@ permissions: read-all
 # Should be identical to values in your paapy-onboarding.yml ######################################################
 env:
   default-permissions: # Optional. A comma-separated string with any of: 'sns, sqs, rds, eventbridge'.
+  nonprod-account-id: '316691227820' # Required. AWS Account ID for nonprod environment (dev1)
+  prod-account-id: '907437910282' # Required. AWS Account ID for prod environment (NinetyIO-prod)
   service-name: # Required. Your service name. MUST MATCH REPOSITORY NAME!
   service-type: # Required. Service type of either: 'ecs' or 'lambda'.
   team-name: # Required. Your team name.
@@ -85,12 +87,14 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: PaaPy Offboarding
-        uses: humalytix/PaaPy-onboarding@v1
+        uses: humalytix/PaaPy-onboarding@v3
         with:
           env: nonprod
+          account_id: ${{ env.nonprod-account-id }}
           app-token: ${{ steps.app-token.outputs.token }}
           custom-policy-names: ${{ env.custom-policy-names }}
           default-permissions: ${{ env.default-permissions }}
+          harness-token: ${{ secrets.HARNESS_IO_SECRET }}
           offboarding: true
           service-name: ${{ env.service-name }}
           service-type: ${{ env.service-type }}
@@ -111,12 +115,14 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: PaaPy Offboarding
-        uses: humalytix/PaaPy-onboarding@v1
+        uses: humalytix/PaaPy-onboarding@v3
         with:
           env: prod
+          account_id: ${{ env.prod-account-id }}
           app-token: ${{ steps.app-token.outputs.token }}
           custom-policy-names: ${{ env.custom-policy-names }}
           default-permissions: ${{ env.default-permissions }}
+          harness-token: ${{ secrets.HARNESS_IO_SECRET }}
           offboarding: true
           service-name: ${{ env.service-name }}
           service-type: ${{ env.service-type }}
@@ -141,9 +147,10 @@ jobs:
 
       - name: Create ECR Repo
         id: ecr
-        uses: humalytix/PaaPy-ecr@v1
+        uses: humalytix/PaaPy-ecr@v2
         with:
           app-token: ${{ steps.app-token.outputs.token }}
+          harness-token: ${{ secrets.HARNESS_IO_SECRET }}
           offboarding: true
           service-name: ${{ env.service-name }}
 
