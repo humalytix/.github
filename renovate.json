@@ -37,7 +37,7 @@
 		{
 			"description": "Ignore Harness private Terraform modules",
 			"matchManagers": ["terraform"],
-			"matchPackageNames": ["app.harness.io/G0S8_PR4TiiuRYKylCWxFA/PaaPy-TF-ecs/ninety"],
+			"matchPackageNames": ["/^app\\.harness\\.io/"],
 			"enabled": false
 		}
   ],
