@@ -1,8 +1,12 @@
 {
-	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
-	"extends": ["config:recommended", ":semanticCommits", "helpers:pinGitHubActionDigests"],
-	"abandonmentThreshold": "2 years",
-	"minimumReleaseAge": "7 days",
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":semanticCommits",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "abandonmentThreshold": "2 years",
+  "minimumReleaseAge": "7 days",
   "packageRules": [
     {
       "description": "Limit Active-Reports to minor and patch updates only",
@@ -30,21 +34,21 @@
       "groupName": "ag-grid-minor-patch"
     },
     {
-			"description": "Ignore internal @humalytix packages",
-			"enabled": false,
-			"matchPackageNames": ["/^@humalytix//"]
-		},
-		{
-			"description": "Ignore Harness private Terraform modules",
-			"matchManagers": ["terraform"],
-			"matchPackageNames": ["/^app\\.harness\\.io/"],
-			"enabled": false
-		}
+      "description": "Ignore internal @humalytix packages",
+      "enabled": false,
+      "matchPackageNames": ["/^@humalytix//"]
+    },
+    {
+      "description": "Ignore Harness private Terraform modules",
+      "matchManagers": ["terraform"],
+      "matchPackageNames": ["/^app\\.harness\\.io/"],
+      "enabled": false
+    }
   ],
-"prConcurrentLimit": 5,
-	"rebaseWhen": "behind-base-branch",
-	"vulnerabilityAlerts": {
-		"labels": ["security"],
-		"automerge": true
-	}
+  "prConcurrentLimit": 5,
+  "rebaseWhen": "behind-base-branch",
+  "vulnerabilityAlerts": {
+    "labels": ["security"],
+    "automerge": true
+  }
 }
