@@ -72,6 +72,30 @@ jobs:
           slack_channel_id: 'C08A9SV7YL8'
           slack_webhook: ${{ secrets.DELIVERY_SLACK_WEBHOOK }}
 
+  offboard-harness:
+    runs-on: ubuntu-24.04
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: Offboard Harness
+        uses: humalytix/PaaPy-harness@v1
+        with:
+          app-token: ${{ steps.app-token.outputs.token }}
+          harness-token: ${{ secrets.HARNESS_IO_SECRET }}
+          offboarding: true
+          op-token: ''
+          service-name: ${{ env.service-name }}
+          service-type: ${{ env.service-type }}
+
   offboard-nonprod:
     runs-on: ubuntu-24.04
     permissions:
@@ -87,10 +111,10 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: PaaPy Offboarding
-        uses: humalytix/PaaPy-onboarding@v3
+        uses: humalytix/PaaPy-onboarding@v4
         with:
           env: nonprod
-          account_id: ${{ env.nonprod-account-id }}
+          account-id: ${{ env.nonprod-account-id }}
           app-token: ${{ steps.app-token.outputs.token }}
           custom-policy-names: ${{ env.custom-policy-names }}
           default-permissions: ${{ env.default-permissions }}
@@ -118,7 +142,7 @@ jobs:
         uses: humalytix/PaaPy-onboarding@v3
         with:
           env: prod
-          account_id: ${{ env.prod-account-id }}
+          account-id: ${{ env.prod-account-id }}
           app-token: ${{ steps.app-token.outputs.token }}
           custom-policy-names: ${{ env.custom-policy-names }}
           default-permissions: ${{ env.default-permissions }}

@@ -22,6 +22,8 @@ jobs:
     permissions:
       id-token: write
       contents: write
+    outputs:
+      token: ${{ steps.onepass.outputs.token }}
     steps:
       - name: PaaPy 1Password Onboarding
         id: onepass
@@ -65,15 +67,12 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: gh secret set OP_SERVICE_ACCOUNT_TOKEN --body "${{ steps.onepass.outputs.token }}"
 
-  onboard-nonprod:
+  onboard-harness:
     runs-on: ubuntu-24.04
+    needs: onepass
     permissions:
       id-token: write
       contents: read
-    outputs:
-      role_arn: ${{ steps.onboarding.outputs.role_arn }}
-      state_bucket: ${{ steps.onboarding.outputs.state_bucket }}
-      secret_arn: ${{ steps.onboarding.outputs.secret_arn }}
     steps:
       - name: Get PaaPy Token
         uses: actions/create-github-app-token@v1
@@ -83,51 +82,14 @@ jobs:
           private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
           owner: ${{ github.repository_owner }}
 
-      - name: PaaPy Onboarding
-        uses: humalytix/PaaPy-onboarding@v3
-        id: onboarding
+      - name: Create Harness Project
+        uses: humalytix/PaaPy-harness@v1
         with:
-          env: nonprod
-          account_id: ${{ env.nonprod-account-id }}
           app-token: ${{ steps.app-token.outputs.token }}
-          custom-policy-names: ${{ env.custom-policy-names }}
-          default-permissions: ${{ env.default-permissions }}
           harness-token: ${{ secrets.HARNESS_IO_SECRET }}
+          op-token: ${{ needs.onepass.outputs.token }}
           service-name: ${{ env.service-name }}
           service-type: ${{ env.service-type }}
-          team-name: ${{ env.team-name }}
-
-  onboard-prod:
-    runs-on: ubuntu-24.04
-    permissions:
-      id-token: write
-      contents: read
-    outputs:
-      role_arn: ${{ steps.onboarding.outputs.role_arn }}
-      state_bucket: ${{ steps.onboarding.outputs.state_bucket }}
-      secret_arn: ${{ steps.onboarding.outputs.secret_arn }}
-    steps:
-      - name: Get PaaPy Token
-        uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ vars.PAAPY_APP_ID }}
-          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-
-      - name: PaaPy Onboarding
-        uses: humalytix/PaaPy-onboarding@v3
-        id: onboarding
-        with:
-          env: prod
-          account_id: ${{ env.prod-account-id }}
-          app-token: ${{ steps.app-token.outputs.token }}
-          custom-policy-names: ${{ env.custom-policy-names }}
-          default-permissions: ${{ env.default-permissions }}
-          harness-token: ${{ secrets.HARNESS_IO_SECRET }}
-          service-name: ${{ env.service-name }}
-          service-type: ${{ env.service-type }}
-          team-name: ${{ env.team-name }}
 
   onboard-ecr:
     runs-on: ubuntu-24.04
@@ -137,6 +99,7 @@ jobs:
     outputs:
       repo_url: ${{ steps.ecr.outputs.repo_url }}
       repo_name: ${{ steps.ecr.outputs.repo_name }}
+      repo_arn: ${{ steps.ecr.outputs.repo_arn }}
     steps:
       - name: Get PaaPy Token
         uses: actions/create-github-app-token@v1
@@ -148,11 +111,79 @@ jobs:
 
       - name: Create ECR Repo
         id: ecr
-        uses: humalytix/PaaPy-ecr@v2
+        uses: humalytix/PaaPy-ecr@v3
         with:
           app-token: ${{ steps.app-token.outputs.token }}
           harness-token: ${{ secrets.HARNESS_IO_SECRET }}
           service-name: ${{ env.service-name }}
+
+  onboard-nonprod:
+    runs-on: ubuntu-24.04
+    needs: onboard-ecr
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      role_arn: ${{ steps.onboarding.outputs.role_arn }}
+      state_bucket: ${{ steps.onboarding.outputs.state_bucket }}
+      secret_arn: ${{ steps.onboarding.outputs.secret_arn }}
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: PaaPy Onboarding
+        uses: humalytix/PaaPy-onboarding@v4
+        id: onboarding
+        with:
+          env: nonprod
+          account-id: ${{ env.nonprod-account-id }}
+          app-token: ${{ steps.app-token.outputs.token }}
+          custom-policy-names: ${{ env.custom-policy-names }}
+          default-permissions: ${{ env.default-permissions }}
+          harness-token: ${{ secrets.HARNESS_IO_SECRET }}
+          repo-arns: ${{ needs.onboard-ecr.outputs.repo_arn }}
+          service-name: ${{ env.service-name }}
+          service-type: ${{ env.service-type }}
+          team-name: ${{ env.team-name }}
+
+  onboard-prod:
+    runs-on: ubuntu-24.04
+    needs: onboard-ecr
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      role_arn: ${{ steps.onboarding.outputs.role_arn }}
+      state_bucket: ${{ steps.onboarding.outputs.state_bucket }}
+      secret_arn: ${{ steps.onboarding.outputs.secret_arn }}
+    steps:
+      - name: Get PaaPy Token
+        uses: actions/create-github-app-token@v1
+        id: app-token
+        with:
+          app-id: ${{ vars.PAAPY_APP_ID }}
+          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+
+      - name: PaaPy Onboarding
+        uses: humalytix/PaaPy-onboarding@v4
+        id: onboarding
+        with:
+          env: prod
+          account-id: ${{ env.prod-account-id }}
+          app-token: ${{ steps.app-token.outputs.token }}
+          custom-policy-names: ${{ env.custom-policy-names }}
+          default-permissions: ${{ env.default-permissions }}
+          harness-token: ${{ secrets.HARNESS_IO_SECRET }}
+          repo-arns: ${{ needs.onboard-ecr.outputs.repo_arn }}
+          service-name: ${{ env.service-name }}
+          service-type: ${{ env.service-type }}
+          team-name: ${{ env.team-name }}
 
   set-repo-vars:
     runs-on: ubuntu-24.04
