@@ -137,7 +137,7 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: PaaPy Onboarding
-        uses: humalytix/PaaPy-onboarding@v4
+        uses: humalytix/PaaPy-onboarding@v3
         id: onboarding
         with:
           env: nonprod
@@ -171,7 +171,7 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: PaaPy Onboarding
-        uses: humalytix/PaaPy-onboarding@v4
+        uses: humalytix/PaaPy-onboarding@v3
         id: onboarding
         with:
           env: prod
