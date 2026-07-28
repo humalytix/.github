@@ -92,7 +92,7 @@ jobs:
           app-token: ${{ steps.app-token.outputs.token }}
           harness-token: ${{ secrets.HARNESS_IO_SECRET }}
           offboarding: true
-          op-token: ''
+          op-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           service-name: ${{ env.service-name }}
           service-type: ${{ env.service-type }}
 

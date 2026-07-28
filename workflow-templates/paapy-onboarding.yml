@@ -87,7 +87,7 @@ jobs:
         with:
           app-token: ${{ steps.app-token.outputs.token }}
           harness-token: ${{ secrets.HARNESS_IO_SECRET }}
-          op-token: ${{ needs.onepass.outputs.token }}
+          op-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           service-name: ${{ env.service-name }}
           service-type: ${{ env.service-type }}
 
@@ -137,7 +137,7 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: PaaPy Onboarding
-        uses: humalytix/PaaPy-onboarding@v3
+        uses: humalytix/PaaPy-onboarding@v5
         id: onboarding
         with:
           env: nonprod
@@ -171,7 +171,7 @@ jobs:
           owner: ${{ github.repository_owner }}
 
       - name: PaaPy Onboarding
-        uses: humalytix/PaaPy-onboarding@v3
+        uses: humalytix/PaaPy-onboarding@v5
         id: onboarding
         with:
           env: prod
