@@ -11,6 +11,7 @@ env:
   prod-account-id: '907437910282' # Required. AWS Account ID for prod environment (NinetyIO-prod)
   service-name: # Required. Your service name. MUST MATCH REPOSITORY NAME!
   service-type: # Required. Service type of either: 'ecs' or 'lambda'.
+  slack-user-group: # Optional. A Slack user group ID to add to the Slack alert channel.
   team-name: # Required. Your team name.
   custom-policy-names: # Optional. A comma-separated string of custom IAM policy names.
   vault-users: # Required. A comma-separated string of user emails to add to the 1Password vault
@@ -66,30 +67,6 @@ jobs:
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: gh secret set OP_SERVICE_ACCOUNT_TOKEN --body "${{ steps.onepass.outputs.token }}"
-
-  onboard-harness:
-    runs-on: ubuntu-24.04
-    needs: onepass
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Get PaaPy Token
-        uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ vars.PAAPY_APP_ID }}
-          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-
-      - name: Create Harness Project
-        uses: humalytix/PaaPy-harness@v1
-        with:
-          app-token: ${{ steps.app-token.outputs.token }}
-          harness-token: ${{ secrets.HARNESS_IO_SECRET }}
-          op-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          service-name: ${{ env.service-name }}
-          service-type: ${{ env.service-type }}
 
   onboard-ecr:
     runs-on: ubuntu-24.04
@@ -185,9 +162,22 @@ jobs:
           service-type: ${{ env.service-type }}
           team-name: ${{ env.team-name }}
 
+  onboard-slack:
+    runs-on: ubuntu-24.04
+    outputs:
+      channel-id: ${{ steps.slack.outputs.channel-id }}
+    steps:
+      - name: Provision Slack Alert Channel
+        id: slack
+        uses: humalytix/PaaPy-slack@v1
+        with:
+          slack-bot-token: ${{ secrets.PAAPY_SLACK_BOT_TOKEN }}
+          user-group: ${{ env.slack-user-group }}
+          # channel-name: ${{ env.service-name }}-alerts # Optional. If not provided, a channel name will be generated.
+
   set-repo-vars:
     runs-on: ubuntu-24.04
-    needs: [onboard-nonprod, onboard-prod, onboard-ecr]
+    needs: [onboard-nonprod, onboard-prod, onboard-ecr, onboard-slack]
     permissions:
       id-token: write
       contents: write
@@ -217,3 +207,4 @@ jobs:
           gh variable set PROD_SECRET_ARN --body "${{ needs.onboard-prod.outputs.secret_arn }}"
           gh variable set ECR_REPO_URL --body "${{ needs.onboard-ecr.outputs.repo_url }}"
           gh variable set ECR_REPO_NAME --body "${{ needs.onboard-ecr.outputs.repo_name }}"
+          gh variable set SLACK_CHANNEL_ID --body "${{ needs.onboard-slack.outputs.channel-id }}"
