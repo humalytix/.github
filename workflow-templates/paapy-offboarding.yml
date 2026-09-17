@@ -12,6 +12,7 @@ env:
   prod-account-id: '907437910282' # Required. AWS Account ID for prod environment (NinetyIO-prod)
   service-name: # Required. Your service name. MUST MATCH REPOSITORY NAME!
   service-type: # Required. Service type of either: 'ecs' or 'lambda'.
+  slack-user-group: # Optional. A Slack user group ID to add to the Slack alert channel.
   team-name: # Required. Your team name.
   custom-policy-names: # Optional. A comma-separated string of custom IAM policy names.
   vault-users: # Required. A comma-separated string of user emails to add to the 1Password vault
@@ -71,30 +72,6 @@ jobs:
           message_type: cancelled
           slack_channel_id: 'C08A9SV7YL8'
           slack_webhook: ${{ secrets.DELIVERY_SLACK_WEBHOOK }}
-
-  offboard-harness:
-    runs-on: ubuntu-24.04
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Get PaaPy Token
-        uses: actions/create-github-app-token@v1
-        id: app-token
-        with:
-          app-id: ${{ vars.PAAPY_APP_ID }}
-          private-key: ${{ secrets.PAAPY_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-
-      - name: Offboard Harness
-        uses: humalytix/PaaPy-harness@v1
-        with:
-          app-token: ${{ steps.app-token.outputs.token }}
-          harness-token: ${{ secrets.HARNESS_IO_SECRET }}
-          offboarding: true
-          op-token: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          service-name: ${{ env.service-name }}
-          service-type: ${{ env.service-type }}
 
   offboard-nonprod:
     runs-on: ubuntu-24.04
@@ -178,9 +155,20 @@ jobs:
           offboarding: true
           service-name: ${{ env.service-name }}
 
+  offboard-slack:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Request Slack Channel Archive
+        uses: humalytix/PaaPy-slack@v1
+        with:
+          slack-bot-token: ${{ secrets.PAAPY_SLACK_BOT_TOKEN }}
+          user-group: ${{ env.slack-user-group }}
+          # channel-name: ${{ env.service-name }}-alerts # Optional. If not provided, a channel name will be generated.
+          offboarding: 'true'
+
   delete-repo-vars:
     runs-on: ubuntu-24.04
-    needs: [offboard-nonprod, offboard-prod, offboard-ecr]
+    needs: [offboard-nonprod, offboard-prod, offboard-ecr, offboard-slack]
     permissions:
       id-token: write
       contents: write
@@ -210,3 +198,4 @@ jobs:
           gh variable delete PROD_SECRET_ARN
           gh variable delete ECR_REPO_URL
           gh variable delete ECR_REPO_NAME
+          gh variable delete SLACK_CHANNEL_ID
